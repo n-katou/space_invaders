@@ -73,6 +73,10 @@ interface GameState {
   isMultishotActive: boolean;
   isSpeedupActive: boolean;
   stars: Star[];
+  // Score, lives, and level are now managed in the ref
+  score: number;
+  lives: number;
+  level: number;
 }
 
 
@@ -297,12 +301,11 @@ const drawUI = (ctx: CanvasRenderingContext2D, score: number, lives: number, lev
 
 export default function SpaceInvadersGame(): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [score, setScore] = useState<number>(0);
-  const [lives, setLives] = useState<number>(PLAYER_INITIAL_LIVES);
-  const [level, setLevel] = useState<number>(1);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [gameWon, setGameWon] = useState<boolean>(false);
   const [isShaking, setIsShaking] = useState<boolean>(false);
+  // State to trigger UI updates from the game loop
+  const [uiForceUpdate, setUiForceUpdate] = useState(0);
 
   const gameState = useRef<GameState>({
     player: { x: CANVAS_WIDTH / 2 - PLAYER_WIDTH / 2, y: CANVAS_HEIGHT - PLAYER_HEIGHT - 40 },
@@ -319,6 +322,9 @@ export default function SpaceInvadersGame(): JSX.Element {
     isMultishotActive: false,
     isSpeedupActive: false,
     stars: [],
+    score: 0, // Now managed here
+    lives: PLAYER_INITIAL_LIVES, // Now managed here
+    level: 1, // Now managed here
   });
 
   // Initialize stars
@@ -376,15 +382,18 @@ export default function SpaceInvadersGame(): JSX.Element {
     gameState.current.invaderBullets = [];
     gameState.current.playerBullets = [];
     gameState.current.invaderDirection = 1;
+    gameState.current.level = currentLevel;
+    // Force a UI update to show the new level
+    setUiForceUpdate(Date.now());
   };
 
   // Complete game initialization
   const initializeGame = () => {
-    setScore(0);
-    setLives(PLAYER_INITIAL_LIVES);
-    setLevel(1);
     setGameOver(false);
     setGameWon(false);
+    gameState.current.score = 0;
+    gameState.current.lives = PLAYER_INITIAL_LIVES;
+    gameState.current.level = 1;
     initializeShields();
     startLevel(1);
     gameState.current.powerUps = [];
@@ -393,6 +402,8 @@ export default function SpaceInvadersGame(): JSX.Element {
     gameState.current.isShieldActive = false;
     gameState.current.isMultishotActive = false;
     gameState.current.isSpeedupActive = false;
+    // Force a UI update for a fresh start
+    setUiForceUpdate(Date.now());
   };
 
   // Handle player fire
@@ -464,25 +475,18 @@ export default function SpaceInvadersGame(): JSX.Element {
       window.removeEventListener('keyup', handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gameOver]); // Add gameOver as a dependency to restart the loop
-
-
-  useEffect(() => {
-    if (!gameOver && level > 1) {
-      startLevel(level);
-    }
-  }, [level, gameOver]);
+  }, [gameOver]);
 
   // Shake the screen when a life is lost
   useEffect(() => {
-    if (lives < PLAYER_INITIAL_LIVES && lives >= 0 && !gameOver) {
+    if (gameState.current.lives < PLAYER_INITIAL_LIVES && gameState.current.lives >= 0 && !gameOver) {
       setIsShaking(true);
       const shakeTimeout = setTimeout(() => {
         setIsShaking(false);
       }, 500); // Increased shake duration for better visibility
       return () => clearTimeout(shakeTimeout);
     }
-  }, [lives]);
+  }, [uiForceUpdate]);
 
   const update = () => {
     const { player, invaders, shields } = gameState.current;
@@ -515,7 +519,7 @@ export default function SpaceInvadersGame(): JSX.Element {
 
     // Invader movement logic
     const aliveInvaders = invaders.filter(i => i.alive);
-    const invaderSpeed = INVADER_BASE_SPEED + (invaders.length - aliveInvaders.length) * 0.02 + (level - 1) * 0.1;
+    const invaderSpeed = INVADER_BASE_SPEED + (invaders.length - aliveInvaders.length) * 0.02 + (gameState.current.level - 1) * 0.1;
 
     let edgeReached = false;
     aliveInvaders.forEach(invader => {
@@ -530,7 +534,7 @@ export default function SpaceInvadersGame(): JSX.Element {
     }
 
     // Invader firing (adjusting fire rate)
-    const fireRate = INVADER_BASE_FIRE_RATE + (level - 1) * INVADER_FIRE_RATE_INCREASE;
+    const fireRate = INVADER_BASE_FIRE_RATE + (gameState.current.level - 1) * INVADER_FIRE_RATE_INCREASE;
     aliveInvaders.forEach(invader => {
       if (Math.random() < fireRate) {
         gameState.current.invaderBullets.push({
@@ -568,10 +572,9 @@ export default function SpaceInvadersGame(): JSX.Element {
     checkBulletShieldCollision(gameState.current.invaderBullets, true);
     checkBulletShieldCollision(gameState.current.playerBullets, false);
 
-    // Collision detection: Player's bullet vs Invaders (FIXED LOGIC)
+    // Collision detection: Player's bullet vs Invaders
     for (let i = gameState.current.playerBullets.length - 1; i >= 0; i--) {
       const bullet = gameState.current.playerBullets[i];
-      // Find the invader in the MAIN invaders array to update it correctly
       const invaderIndex = gameState.current.invaders.findIndex(invader => {
         return (
           invader.alive &&
@@ -599,7 +602,9 @@ export default function SpaceInvadersGame(): JSX.Element {
 
         invader.alive = false;
         gameState.current.playerBullets.splice(i, 1);
-        setScore(prev => prev + 10);
+        // Correctly update the score in the ref and force a UI update
+        gameState.current.score += 10;
+        setUiForceUpdate(Date.now());
 
         // Probability of dropping a power-up
         if (Math.random() < 0.1) {
@@ -617,14 +622,13 @@ export default function SpaceInvadersGame(): JSX.Element {
         bullet.y < player.y + PLAYER_HEIGHT && bullet.y + BULLET_HEIGHT > player.y) {
         if (!gameState.current.isShieldActive) {
           gameState.current.invaderBullets.splice(i, 1);
-          setLives(prevLives => {
-            const newLives = prevLives - 1;
-            if (newLives <= 0) {
-              setGameOver(true);
-              setGameWon(false);
-            }
-            return newLives;
-          });
+          const newLives = gameState.current.lives - 1;
+          gameState.current.lives = newLives;
+          setUiForceUpdate(Date.now());
+          if (newLives <= 0) {
+            setGameOver(true);
+            setGameWon(false);
+          }
           // Add floating text for hit feedback
           gameState.current.floatingTexts.push({ x: player.x + PLAYER_WIDTH / 2, y: player.y, text: 'ヒット！', life: 60 });
         } else {
@@ -670,7 +674,7 @@ export default function SpaceInvadersGame(): JSX.Element {
 
     // Check win condition
     if (aliveInvaders.length === 0 && invaders.length > 0) {
-      setLevel(prev => prev + 1);
+      startLevel(gameState.current.level + 1);
     }
   };
 
@@ -698,7 +702,7 @@ export default function SpaceInvadersGame(): JSX.Element {
     drawPowerUps(ctx, gameState.current.powerUps);
     drawParticles(ctx, gameState.current.particles);
     drawFloatingTexts(ctx, gameState.current.floatingTexts);
-    drawUI(ctx, score, lives, level);
+    drawUI(ctx, gameState.current.score, gameState.current.lives, gameState.current.level);
 
     if (isShaking) {
       ctx.translate(-shakeX, -shakeY);
