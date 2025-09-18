@@ -311,6 +311,10 @@ export default function SpaceInvadersGame(): JSX.Element {
     stars: [],
   });
 
+  // タッチ操作用の状態
+  const [isTouchMovingLeft, setIsTouchMovingLeft] = useState(false);
+  const [isTouchMovingRight, setIsTouchMovingRight] = useState(false);
+
   // 星の初期化
   const initializeStars = () => {
     const newStars: Star[] = [];
@@ -391,9 +395,8 @@ export default function SpaceInvadersGame(): JSX.Element {
     initializeStars();
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        gameState.current.keys[e.key as keyof Keys] = true;
-      }
+      if (e.key === 'ArrowLeft') gameState.current.keys.ArrowLeft = true;
+      if (e.key === 'ArrowRight') gameState.current.keys.ArrowRight = true;
       if (e.key === ' ' && !gameOver) {
         if (!gameState.current.isMultishotActive) {
           if (gameState.current.playerBullets.length < 3) {
@@ -424,9 +427,8 @@ export default function SpaceInvadersGame(): JSX.Element {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        gameState.current.keys[e.key as keyof Keys] = false;
-      }
+      if (e.key === 'ArrowLeft') gameState.current.keys.ArrowLeft = false;
+      if (e.key === 'ArrowRight') gameState.current.keys.ArrowRight = false;
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -469,14 +471,44 @@ export default function SpaceInvadersGame(): JSX.Element {
     }
   }, [lives]);
 
+  const handleFire = () => {
+    if (gameOver) return;
+    if (!gameState.current.isMultishotActive) {
+      if (gameState.current.playerBullets.length < 3) {
+        gameState.current.playerBullets.push({
+          x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2,
+          y: gameState.current.player.y,
+        });
+      }
+    } else {
+      // マルチショット
+      gameState.current.playerBullets.push({
+        x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH * 3 - 5,
+        y: gameState.current.player.y,
+      });
+      gameState.current.playerBullets.push({
+        x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2,
+        y: gameState.current.player.y,
+      });
+      gameState.current.playerBullets.push({
+        x: gameState.current.player.x + PLAYER_WIDTH / 2 + BULLET_WIDTH * 3 + 5,
+        y: gameState.current.player.y,
+      });
+    }
+  };
+
   const update = () => {
-    const { player, keys, invaders, shields } = gameState.current;
+    const { player, invaders, shields } = gameState.current;
     if (gameOver) return;
 
     // プレイヤーの移動
     const currentSpeed = gameState.current.isSpeedupActive ? PLAYER_SPEED * 1.5 : PLAYER_SPEED;
-    if (keys.ArrowLeft && player.x > 0) player.x -= currentSpeed;
-    if (keys.ArrowRight && player.x < CANVAS_WIDTH - PLAYER_WIDTH) player.x += currentSpeed;
+    if (gameState.current.keys.ArrowLeft || isTouchMovingLeft) {
+      if (player.x > 0) player.x -= currentSpeed;
+    }
+    if (gameState.current.keys.ArrowRight || isTouchMovingRight) {
+      if (player.x < CANVAS_WIDTH - PLAYER_WIDTH) player.x += currentSpeed;
+    }
 
     // 弾の移動
     gameState.current.playerBullets = gameState.current.playerBullets.filter(b => b.y > 0).map(b => ({ ...b, y: b.y - BULLET_SPEED }));
@@ -647,7 +679,7 @@ export default function SpaceInvadersGame(): JSX.Element {
     }
 
     drawStars(ctx, gameState.current.stars);
-    drawPlayer(ctx, gameState.current.player, gameState.current.isShieldActive, gameState.current.keys.ArrowLeft || gameState.current.keys.ArrowRight);
+    drawPlayer(ctx, gameState.current.player, gameState.current.isShieldActive, gameState.current.keys.ArrowLeft || gameState.current.keys.ArrowRight || isTouchMovingLeft || isTouchMovingRight);
     drawInvaders(ctx, gameState.current.invaders);
     drawShields(ctx, gameState.current.shields);
     drawBullets(ctx, gameState.current.playerBullets, '#a78bfa');
@@ -667,7 +699,7 @@ export default function SpaceInvadersGame(): JSX.Element {
       <h1 className="text-4xl font-bold mb-4 text-emerald-400" style={{ fontFamily: '"Press Start 2P", system-ui' }}>
         スペースインベーダー
       </h1>
-      <div className="relative border-4 border-slate-600 rounded-lg shadow-2xl shadow-cyan-500/20">
+      <div className="relative border-4 border-slate-600 rounded-lg shadow-2xl shadow-cyan-500/20 max-w-full">
         <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="bg-slate-900 rounded" />
         {gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-60">
@@ -676,14 +708,44 @@ export default function SpaceInvadersGame(): JSX.Element {
         )}
       </div>
       <div className="mt-6 text-center text-slate-400 w-full max-w-md">
-        <p className="text-lg">操作方法</p>
-        <p><span className="font-bold text-cyan-400">← →</span> キーで移動</p>
-        <p><span className="font-bold text-cyan-400">スペースキー</span>で発射</p>
-        {gameOver && <p className="mt-2"><span className="font-bold text-cyan-400">'R'</span>キーでリスタート</p>}
+        <p className="text-lg hidden md:block">操作方法</p>
+        <p className="hidden md:block"><span className="font-bold text-cyan-400">← →</span> キーで移動</p>
+        <p className="hidden md:block"><span className="font-bold text-cyan-400">スペースキー</span>で発射</p>
+        {gameOver && <p className="mt-2 hidden md:block"><span className="font-bold text-cyan-400">'R'</span>キーでリスタート</p>}
       </div>
+
+      <div className="mt-6 w-full max-w-sm flex justify-around md:hidden">
+        <button
+          className="p-4 bg-gray-700 text-white rounded-lg shadow-lg active:bg-gray-500"
+          onTouchStart={() => setIsTouchMovingLeft(true)}
+          onTouchEnd={() => setIsTouchMovingLeft(false)}
+        >
+          <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
+        </button>
+        <button
+          className="p-4 bg-red-600 text-white rounded-full shadow-lg active:bg-red-500"
+          onTouchStart={handleFire}
+        >
+          <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a2 2 0 00-2 2v4a2 2 0 104 0V4a2 2 0 00-2-2zM4 10a2 2 0 012-2h8a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6z"></path></svg>
+        </button>
+        <button
+          className="p-4 bg-gray-700 text-white rounded-lg shadow-lg active:bg-gray-500"
+          onTouchStart={() => setIsTouchMovingRight(true)}
+          onTouchEnd={() => setIsTouchMovingRight(false)}
+        >
+          <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10l-3.293-3.293a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"></path></svg>
+        </button>
+      </div>
+
       <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-            `}</style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        canvas {
+          background-color: #0f172a;
+          display: block;
+          max-width: 100%;
+          height: auto;
+        }
+      `}</style>
     </div>
   );
 }
