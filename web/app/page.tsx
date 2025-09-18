@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, JSX } from 'react';
 
-// 型定義
+// Type definitions
 interface Player {
   x: number;
   y: number;
@@ -76,7 +76,7 @@ interface GameState {
 }
 
 
-// 定数設定
+// Constants
 const CANVAS_WIDTH: number = 480;
 const CANVAS_HEIGHT: number = 640;
 const PLAYER_WIDTH: number = 50;
@@ -95,11 +95,11 @@ const INVADER_GRID_WIDTH: number = (INVADER_WIDTH + INVADER_PADDING) * INVADER_C
 const INVADER_BASE_SPEED: number = 0.3;
 const INVADER_DROP_HEIGHT: number = 20;
 
-// 敵の攻撃頻度を調整
+// Adjust enemy fire rate
 const INVADER_BASE_FIRE_RATE: number = 0.001;
 const INVADER_FIRE_RATE_INCREASE: number = 0.003;
 
-// シールド設定
+// Shield settings
 const SHIELD_ROWS = 3;
 const SHIELD_COLS = 7;
 const SHIELD_BLOCK_SIZE = 8;
@@ -108,12 +108,12 @@ const SHIELD_Y_POSITION = CANVAS_HEIGHT - 120;
 const SHIELD_BLOCK_MAX_HP = 4;
 
 
-// プレイヤーを描画する関数 (リアルな船に更新)
+// Function to draw the player (updated to be more realistic)
 const drawPlayer = (ctx: CanvasRenderingContext2D, player: Player, isShieldActive: boolean, isMoving: boolean) => {
-  // メインボディ
-  ctx.fillStyle = '#4ade80'; // 緑色
+  // Main body
+  ctx.fillStyle = '#4ade80'; // Green
   ctx.fillRect(player.x, player.y, PLAYER_WIDTH, PLAYER_HEIGHT);
-  // コックピット
+  // Cockpit
   ctx.fillStyle = '#166534';
   ctx.beginPath();
   ctx.moveTo(player.x + PLAYER_WIDTH / 2 - 10, player.y);
@@ -122,7 +122,7 @@ const drawPlayer = (ctx: CanvasRenderingContext2D, player: Player, isShieldActiv
   ctx.lineTo(player.x + PLAYER_WIDTH / 2 - 5, player.y - 10);
   ctx.closePath();
   ctx.fill();
-  // 翼
+  // Wings
   ctx.fillStyle = '#166534';
   ctx.beginPath();
   ctx.moveTo(player.x, player.y + PLAYER_HEIGHT / 2);
@@ -138,7 +138,7 @@ const drawPlayer = (ctx: CanvasRenderingContext2D, player: Player, isShieldActiv
   ctx.closePath();
   ctx.fill();
 
-  // スラスター炎
+  // Thruster flame
   if (isMoving) {
     ctx.fillStyle = `rgba(255, 150, 0, ${Math.random() * 0.8 + 0.2})`;
     ctx.beginPath();
@@ -149,7 +149,7 @@ const drawPlayer = (ctx: CanvasRenderingContext2D, player: Player, isShieldActiv
     ctx.fill();
   }
 
-  // シールドが有効な場合、半透明のシールドを描画
+  // Draw a semi-transparent shield if active
   if (isShieldActive) {
     ctx.fillStyle = 'rgba(100, 149, 237, 0.5)';
     ctx.beginPath();
@@ -158,18 +158,18 @@ const drawPlayer = (ctx: CanvasRenderingContext2D, player: Player, isShieldActiv
   }
 };
 
-// インベーダーを描画する関数 (リアルなエイリアンに更新)
+// Function to draw invaders (updated to be more realistic)
 const drawInvaders = (ctx: CanvasRenderingContext2D, invaders: Invader[]) => {
   invaders.forEach(invader => {
     if (invader.alive) {
-      // メインボディ
-      ctx.fillStyle = '#f87171'; // 赤色
+      // Main body
+      ctx.fillStyle = '#f87171'; // Red
       ctx.fillRect(invader.x, invader.y, INVADER_WIDTH, INVADER_HEIGHT);
-      // 目
-      ctx.fillStyle = '#fee2e2'; // 薄い赤色
+      // Eyes
+      ctx.fillStyle = '#fee2e2'; // Pale red
       ctx.fillRect(invader.x + 5, invader.y + 5, 5, 5);
       ctx.fillRect(invader.x + INVADER_WIDTH - 10, invader.y + 5, 5, 5);
-      // 脚
+      // Legs
       ctx.fillStyle = '#f87171';
       ctx.fillRect(invader.x + 5, invader.y + INVADER_HEIGHT, 5, 5);
       ctx.fillRect(invader.x + INVADER_WIDTH - 10, invader.y + INVADER_HEIGHT, 5, 5);
@@ -177,7 +177,7 @@ const drawInvaders = (ctx: CanvasRenderingContext2D, invaders: Invader[]) => {
   });
 };
 
-// 弾を描画する関数
+// Function to draw bullets
 const drawBullets = (ctx: CanvasRenderingContext2D, bullets: Bullet[], color: string) => {
   ctx.fillStyle = color;
   bullets.forEach(bullet => {
@@ -185,12 +185,12 @@ const drawBullets = (ctx: CanvasRenderingContext2D, bullets: Bullet[], color: st
   });
 };
 
-// シールドを描画する関数
+// Function to draw shields
 const drawShields = (ctx: CanvasRenderingContext2D, shields: ShieldBlock[][]) => {
   shields.forEach(shield => {
     shield.forEach(block => {
       if (block.hp > 0) {
-        // HPに応じて色を変える
+        // Change color based on HP
         ctx.fillStyle = `rgba(5, 150, 105, ${block.hp / SHIELD_BLOCK_MAX_HP})`;
         ctx.fillRect(block.x, block.y, SHIELD_BLOCK_SIZE, SHIELD_BLOCK_SIZE);
       }
@@ -198,30 +198,55 @@ const drawShields = (ctx: CanvasRenderingContext2D, shields: ShieldBlock[][]) =>
   });
 };
 
-// パワーアップアイテムを描画する関数
+// Function to draw power-up items
 const drawPowerUps = (ctx: CanvasRenderingContext2D, powerUps: PowerUp[]) => {
   powerUps.forEach(pu => {
+    ctx.save();
+    ctx.translate(pu.x + 10, pu.y + 10);
+    ctx.rotate(Date.now() / 200);
+
     let color = '';
+    let text = '';
+    let iconPath = '';
     switch (pu.type) {
       case 'multishot':
-        color = '#fde047'; // 黄色
+        color = '#fde047'; // Yellow
+        text = 'x3';
         break;
       case 'shield':
-        color = '#60a5fa'; // 青色
+        color = '#60a5fa'; // Blue
+        iconPath = 'M10 2a8 8 0 100 16 8 8 0 000-16zM6 9a2 2 0 114 0 2 2 0 01-4 0zM10 14a2 2 0 114 0 2 2 0 01-4 0z';
         break;
       case 'speedup':
-        color = '#f43f5e'; // 赤ピンク
+        color = '#f43f5e'; // Pink-red
+        iconPath = 'M10 4a1 1 0 00-1 1v6.586l-2.293-2.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V5a1 1 0 00-1-1z';
         break;
     }
+
+    // Draw background shape
     ctx.fillStyle = color;
-    ctx.fillRect(pu.x, pu.y, 20, 20);
+    ctx.fillRect(-10, -10, 20, 20);
     ctx.strokeStyle = 'white';
     ctx.lineWidth = 2;
-    ctx.strokeRect(pu.x, pu.y, 20, 20);
+    ctx.strokeRect(-10, -10, 20, 20);
+
+    // Draw icon or text
+    if (text) {
+      ctx.fillStyle = 'white';
+      ctx.font = '10px "Press Start 2P", system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, 0, 4);
+    } else if (iconPath) {
+      const path = new Path2D(iconPath);
+      ctx.fillStyle = 'white';
+      ctx.fill(path);
+    }
+
+    ctx.restore();
   });
 };
 
-// 爆発のパーティクルを描画する関数
+// Function to draw explosion particles
 const drawParticles = (ctx: CanvasRenderingContext2D, particles: Particle[]) => {
   particles.forEach(p => {
     ctx.fillStyle = `rgba(255, 165, 0, ${p.life / 60})`;
@@ -231,7 +256,7 @@ const drawParticles = (ctx: CanvasRenderingContext2D, particles: Particle[]) => 
   });
 };
 
-// スコアの浮遊テキストを描画する関数
+// Function to draw floating score texts
 const drawFloatingTexts = (ctx: CanvasRenderingContext2D, floatingTexts: FloatingText[]) => {
   ctx.font = '12px "Press Start 2P", system-ui';
   ctx.textAlign = 'center';
@@ -241,7 +266,7 @@ const drawFloatingTexts = (ctx: CanvasRenderingContext2D, floatingTexts: Floatin
   });
 };
 
-// 星を描画する関数
+// Function to draw stars
 const drawStars = (ctx: CanvasRenderingContext2D, stars: Star[]) => {
   ctx.fillStyle = 'white';
   stars.forEach(star => {
@@ -253,34 +278,19 @@ const drawStars = (ctx: CanvasRenderingContext2D, stars: Star[]) => {
   ctx.globalAlpha = 1;
 };
 
-// UIを描画する関数
-const drawUI = (ctx: CanvasRenderingContext2D, score: number, lives: number, level: number, gameOver: boolean, gameWon: boolean) => {
+// Function to draw UI elements
+const drawUI = (ctx: CanvasRenderingContext2D, score: number, lives: number, level: number) => {
   ctx.fillStyle = 'white';
   ctx.font = '16px "Press Start 2P", system-ui';
   ctx.textAlign = 'left';
   ctx.fillText(`SCORE: ${score}`, 20, 30);
   ctx.fillText(`LEVEL: ${level}`, CANVAS_WIDTH - 150, 30);
 
-
-  // ライフを描画
+  // Draw lives
   for (let i = 0; i < lives; i++) {
     const playerMock = { x: 20 + i * (PLAYER_WIDTH * 0.5 + 10), y: CANVAS_HEIGHT - 25 };
     ctx.fillStyle = '#4ade80';
     ctx.fillRect(playerMock.x, playerMock.y, PLAYER_WIDTH * 0.5, PLAYER_HEIGHT * 0.5);
-  }
-
-  if (gameOver) {
-    ctx.textAlign = 'center';
-    ctx.font = '40px "Press Start 2P", system-ui';
-    if (gameWon) {
-      ctx.fillStyle = '#60a5fa'; // 青色
-      ctx.fillText('YOU WIN!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
-    } else {
-      ctx.fillStyle = '#ef4444'; // 濃い赤色
-      ctx.fillText('GAME OVER', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
-    }
-    ctx.font = '16px "Press Start 2P", system-ui';
-    ctx.fillText("Press 'R' to Restart", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 10);
   }
 };
 
@@ -311,11 +321,11 @@ export default function SpaceInvadersGame(): JSX.Element {
     stars: [],
   });
 
-  // タッチ操作用の状態
+  // Touch operation states
   const [isTouchMovingLeft, setIsTouchMovingLeft] = useState(false);
   const [isTouchMovingRight, setIsTouchMovingRight] = useState(false);
 
-  // 星の初期化
+  // Initialize stars
   const initializeStars = () => {
     const newStars: Star[] = [];
     for (let i = 0; i < 100; i++) {
@@ -328,7 +338,6 @@ export default function SpaceInvadersGame(): JSX.Element {
     gameState.current.stars = newStars;
   };
 
-
   const initializeShields = () => {
     const newShields: ShieldBlock[][] = [];
     const shieldWidth = SHIELD_COLS * SHIELD_BLOCK_SIZE;
@@ -338,7 +347,7 @@ export default function SpaceInvadersGame(): JSX.Element {
       const startX = spacing * (i + 1) + shieldWidth * i;
       for (let r = 0; r < SHIELD_ROWS; r++) {
         for (let c = 0; c < SHIELD_COLS; c++) {
-          // U字型にくり抜く
+          // Cut out a U-shape
           if (r === SHIELD_ROWS - 1 && c > 1 && c < SHIELD_COLS - 2) {
             continue;
           }
@@ -356,7 +365,7 @@ export default function SpaceInvadersGame(): JSX.Element {
 
   const startLevel = (currentLevel: number) => {
     const newInvaders: Invader[] = [];
-    // レベルに応じて開始Y座標を下げる
+    // Lower starting Y position based on level
     const startY = 50 + (currentLevel - 1) * 10;
     for (let row = 0; row < INVADER_ROWS; row++) {
       for (let col = 0; col < INVADER_COLS; col++) {
@@ -373,7 +382,7 @@ export default function SpaceInvadersGame(): JSX.Element {
     gameState.current.invaderDirection = 1;
   };
 
-  // ゲームの完全な初期化
+  // Complete game initialization
   const initializeGame = () => {
     setScore(0);
     setLives(PLAYER_INITIAL_LIVES);
@@ -390,6 +399,34 @@ export default function SpaceInvadersGame(): JSX.Element {
     gameState.current.isSpeedupActive = false;
   };
 
+  // Handle player fire
+  const handleFire = () => {
+    if (gameOver) return;
+    if (!gameState.current.isMultishotActive) {
+      // Check if player bullets are already on screen to limit them
+      if (gameState.current.playerBullets.length < 3) {
+        gameState.current.playerBullets.push({
+          x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2,
+          y: gameState.current.player.y,
+        });
+      }
+    } else {
+      // Multishot
+      gameState.current.playerBullets.push({
+        x: gameState.current.player.x + PLAYER_WIDTH * 0.25 - BULLET_WIDTH / 2,
+        y: gameState.current.player.y,
+      });
+      gameState.current.playerBullets.push({
+        x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2,
+        y: gameState.current.player.y,
+      });
+      gameState.current.playerBullets.push({
+        x: gameState.current.player.x + PLAYER_WIDTH * 0.75 - BULLET_WIDTH / 2,
+        y: gameState.current.player.y,
+      });
+    }
+  };
+
   useEffect(() => {
     initializeGame();
     initializeStars();
@@ -398,28 +435,7 @@ export default function SpaceInvadersGame(): JSX.Element {
       if (e.key === 'ArrowLeft') gameState.current.keys.ArrowLeft = true;
       if (e.key === 'ArrowRight') gameState.current.keys.ArrowRight = true;
       if (e.key === ' ' && !gameOver) {
-        if (!gameState.current.isMultishotActive) {
-          if (gameState.current.playerBullets.length < 3) {
-            gameState.current.playerBullets.push({
-              x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2,
-              y: gameState.current.player.y,
-            });
-          }
-        } else {
-          // マルチショット
-          gameState.current.playerBullets.push({
-            x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH * 3 - 5,
-            y: gameState.current.player.y,
-          });
-          gameState.current.playerBullets.push({
-            x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2,
-            y: gameState.current.player.y,
-          });
-          gameState.current.playerBullets.push({
-            x: gameState.current.player.x + PLAYER_WIDTH / 2 + BULLET_WIDTH * 3 + 5,
-            y: gameState.current.player.y,
-          });
-        }
+        handleFire();
       }
       if (e.key === 'r' && gameOver) {
         initializeGame();
@@ -460,48 +476,22 @@ export default function SpaceInvadersGame(): JSX.Element {
     }
   }, [level, gameOver]);
 
-  // ライフが減ったときに画面を揺らす
+  // Shake the screen when a life is lost
   useEffect(() => {
     if (lives < PLAYER_INITIAL_LIVES && lives >= 0 && !gameOver) {
       setIsShaking(true);
       const shakeTimeout = setTimeout(() => {
         setIsShaking(false);
-      }, 200);
+      }, 500); // Increased shake duration for better visibility
       return () => clearTimeout(shakeTimeout);
     }
   }, [lives]);
-
-  const handleFire = () => {
-    if (gameOver) return;
-    if (!gameState.current.isMultishotActive) {
-      if (gameState.current.playerBullets.length < 3) {
-        gameState.current.playerBullets.push({
-          x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2,
-          y: gameState.current.player.y,
-        });
-      }
-    } else {
-      // マルチショット
-      gameState.current.playerBullets.push({
-        x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH * 3 - 5,
-        y: gameState.current.player.y,
-      });
-      gameState.current.playerBullets.push({
-        x: gameState.current.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2,
-        y: gameState.current.player.y,
-      });
-      gameState.current.playerBullets.push({
-        x: gameState.current.player.x + PLAYER_WIDTH / 2 + BULLET_WIDTH * 3 + 5,
-        y: gameState.current.player.y,
-      });
-    }
-  };
 
   const update = () => {
     const { player, invaders, shields } = gameState.current;
     if (gameOver) return;
 
-    // プレイヤーの移動
+    // Player movement
     const currentSpeed = gameState.current.isSpeedupActive ? PLAYER_SPEED * 1.5 : PLAYER_SPEED;
     if (gameState.current.keys.ArrowLeft || isTouchMovingLeft) {
       if (player.x > 0) player.x -= currentSpeed;
@@ -510,14 +500,14 @@ export default function SpaceInvadersGame(): JSX.Element {
       if (player.x < CANVAS_WIDTH - PLAYER_WIDTH) player.x += currentSpeed;
     }
 
-    // 弾の移動
+    // Bullet movement
     gameState.current.playerBullets = gameState.current.playerBullets.filter(b => b.y > 0).map(b => ({ ...b, y: b.y - BULLET_SPEED }));
     gameState.current.invaderBullets = gameState.current.invaderBullets.filter(b => b.y < CANVAS_HEIGHT).map(b => ({ ...b, y: b.y + BULLET_SPEED / 2 }));
 
-    // パワーアップアイテムの移動
+    // Power-up movement
     gameState.current.powerUps = gameState.current.powerUps.filter(pu => pu.y < CANVAS_HEIGHT).map(pu => ({ ...pu, y: pu.y + 2 }));
 
-    // 星の移動
+    // Star movement
     gameState.current.stars.forEach(star => {
       star.y += star.size;
       if (star.y > CANVAS_HEIGHT) {
@@ -526,8 +516,7 @@ export default function SpaceInvadersGame(): JSX.Element {
       }
     });
 
-
-    // インベーダーの移動ロジック
+    // Invader movement logic
     const aliveInvaders = invaders.filter(i => i.alive);
     const invaderSpeed = INVADER_BASE_SPEED + (invaders.length - aliveInvaders.length) * 0.02 + (level - 1) * 0.1;
 
@@ -543,7 +532,7 @@ export default function SpaceInvadersGame(): JSX.Element {
       invaders.forEach(invader => invader.y += INVADER_DROP_HEIGHT);
     }
 
-    // インベーダーの発射 (発射頻度を調整)
+    // Invader firing (adjusting fire rate)
     const fireRate = INVADER_BASE_FIRE_RATE + (level - 1) * INVADER_FIRE_RATE_INCREASE;
     aliveInvaders.forEach(invader => {
       if (Math.random() < fireRate) {
@@ -554,83 +543,106 @@ export default function SpaceInvadersGame(): JSX.Element {
       }
     });
 
-    // 衝突判定: 弾 vs シールド
-    const checkBulletShieldCollision = (bullets: Bullet[]) => {
-      bullets.forEach((bullet, bulletIndex) => {
-        shields.forEach(shield => {
-          shield.forEach(block => {
+    // Collision detection: Bullet vs Shield (corrected loop)
+    const checkBulletShieldCollision = (bullets: Bullet[], canDamage: boolean) => {
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const bullet = bullets[i];
+        for (let j = 0; j < shields.length; j++) {
+          const shield = shields[j];
+          for (let k = 0; k < shield.length; k++) {
+            const block = shield[k];
             if (block.hp > 0 &&
               bullet.x < block.x + SHIELD_BLOCK_SIZE &&
               bullet.x + BULLET_WIDTH > block.x &&
               bullet.y < block.y + SHIELD_BLOCK_SIZE &&
               bullet.y + BULLET_HEIGHT > block.y) {
-              block.hp--;
-              bullets.splice(bulletIndex, 1);
+              if (canDamage) {
+                block.hp--;
+              }
+              bullets.splice(i, 1);
+              break;
             }
-          });
-        });
-      });
-    };
-
-    // プレイヤーの弾はシールドにダメージを与えないように修正
-    checkBulletShieldCollision(gameState.current.invaderBullets);
-
-    // 衝突判定: プレイヤーの弾 vs インベーダー
-    gameState.current.playerBullets.forEach((bullet, bulletIndex, bullets) => {
-      aliveInvaders.forEach((invader) => {
-        if (bullet.x < invader.x + INVADER_WIDTH && bullet.x + BULLET_WIDTH > invader.x &&
-          bullet.y < invader.y + INVADER_HEIGHT && bullet.y + BULLET_HEIGHT > invader.y) {
-
-          // 爆発と浮遊テキストを追加
-          for (let i = 0; i < 15; i++) {
-            gameState.current.particles.push({
-              x: invader.x + INVADER_WIDTH / 2,
-              y: invader.y + INVADER_HEIGHT / 2,
-              vx: (Math.random() - 0.5) * 2,
-              vy: (Math.random() - 0.5) * 2,
-              radius: Math.random() * 3,
-              life: 60,
-            });
-          }
-          gameState.current.floatingTexts.push({ x: invader.x + INVADER_WIDTH / 2, y: invader.y, text: '+10', life: 60 });
-
-          invader.alive = false;
-          bullets.splice(bulletIndex, 1);
-          setScore(prev => prev + 10);
-
-          // 確率でパワーアップをドロップ
-          if (Math.random() < 0.1) {
-            const types = ['multishot', 'shield', 'speedup'];
-            const randomType = types[Math.floor(Math.random() * types.length)] as PowerUp['type'];
-            gameState.current.powerUps.push({ x: invader.x, y: invader.y, type: randomType });
           }
         }
-      });
-    });
+      }
+    };
 
-    // 衝突判定: インベーダーの弾 vs プレイヤー
-    gameState.current.invaderBullets.forEach((bullet, bulletIndex, bullets) => {
+    // Invader bullets damage shields, player bullets do not
+    checkBulletShieldCollision(gameState.current.invaderBullets, true);
+    checkBulletShieldCollision(gameState.current.playerBullets, false);
+
+    // Collision detection: Player's bullet vs Invaders (FIXED LOGIC)
+    for (let i = gameState.current.playerBullets.length - 1; i >= 0; i--) {
+      const bullet = gameState.current.playerBullets[i];
+      // Find the invader in the MAIN invaders array to update it correctly
+      const invaderIndex = gameState.current.invaders.findIndex(invader => {
+        return (
+          invader.alive &&
+          bullet.x < invader.x + INVADER_WIDTH &&
+          bullet.x + BULLET_WIDTH > invader.x &&
+          bullet.y < invader.y + INVADER_HEIGHT &&
+          bullet.y + BULLET_HEIGHT > invader.y
+        );
+      });
+      if (invaderIndex !== -1) {
+        const invader = gameState.current.invaders[invaderIndex];
+
+        // Add explosion and floating text
+        for (let k = 0; k < 15; k++) {
+          gameState.current.particles.push({
+            x: invader.x + INVADER_WIDTH / 2,
+            y: invader.y + INVADER_HEIGHT / 2,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2,
+            radius: Math.random() * 3,
+            life: 60,
+          });
+        }
+        gameState.current.floatingTexts.push({ x: invader.x + INVADER_WIDTH / 2, y: invader.y, text: '+10', life: 60 });
+
+        invader.alive = false;
+        gameState.current.playerBullets.splice(i, 1);
+        setScore(prev => prev + 10);
+
+        // Probability of dropping a power-up
+        if (Math.random() < 0.1) {
+          const types = ['multishot', 'shield', 'speedup'];
+          const randomType = types[Math.floor(Math.random() * types.length)] as PowerUp['type'];
+          gameState.current.powerUps.push({ x: invader.x, y: invader.y, type: randomType });
+        }
+      }
+    }
+
+    // Collision detection: Invader's bullet vs Player (FIXED LOGIC)
+    for (let i = gameState.current.invaderBullets.length - 1; i >= 0; i--) {
+      const bullet = gameState.current.invaderBullets[i];
       if (bullet.x < player.x + PLAYER_WIDTH && bullet.x + BULLET_WIDTH > player.x &&
         bullet.y < player.y + PLAYER_HEIGHT && bullet.y + BULLET_HEIGHT > player.y) {
         if (!gameState.current.isShieldActive) {
-          bullets.splice(bulletIndex, 1);
-          setLives(prev => prev - 1);
-          if (lives - 1 <= 0) {
-            setGameOver(true);
-            setGameWon(false);
-          }
+          gameState.current.invaderBullets.splice(i, 1);
+          setLives(prevLives => {
+            const newLives = prevLives - 1;
+            if (newLives <= 0) {
+              setGameOver(true);
+              setGameWon(false);
+            }
+            return newLives;
+          });
+          // Add floating text for hit feedback
+          gameState.current.floatingTexts.push({ x: player.x + PLAYER_WIDTH / 2, y: player.y, text: 'ヒット！', life: 60 });
         } else {
-          bullets.splice(bulletIndex, 1);
+          gameState.current.invaderBullets.splice(i, 1);
           gameState.current.isShieldActive = false;
         }
       }
-    });
+    }
 
-    // 衝突判定: パワーアップ vs プレイヤー
-    gameState.current.powerUps.forEach((pu, puIndex, powerUps) => {
+    // Collision detection: Power-up vs Player (corrected loop)
+    for (let i = gameState.current.powerUps.length - 1; i >= 0; i--) {
+      const pu = gameState.current.powerUps[i];
       if (pu.x < player.x + PLAYER_WIDTH && pu.x + 20 > player.x &&
         pu.y < player.y + PLAYER_HEIGHT && pu.y + 20 > player.y) {
-        powerUps.splice(puIndex, 1);
+        gameState.current.powerUps.splice(i, 1);
         switch (pu.type) {
           case 'multishot':
             gameState.current.isMultishotActive = true;
@@ -646,9 +658,9 @@ export default function SpaceInvadersGame(): JSX.Element {
             break;
         }
       }
-    });
+    }
 
-    // パーティクルの更新
+    // Update particles
     gameState.current.particles = gameState.current.particles.filter(p => p.life > 0).map(p => ({
       ...p,
       x: p.x + p.vx,
@@ -656,10 +668,10 @@ export default function SpaceInvadersGame(): JSX.Element {
       life: p.life - 1,
     }));
 
-    // 浮遊テキストの更新
+    // Update floating texts
     gameState.current.floatingTexts = gameState.current.floatingTexts.filter(text => text.life > 0).map(text => ({ ...text, y: text.y - 1, life: text.life - 1 }));
 
-    // 勝利条件の判定
+    // Check win condition
     if (aliveInvaders.length === 0 && invaders.length > 0) {
       setLevel(prev => prev + 1);
     }
@@ -669,7 +681,7 @@ export default function SpaceInvadersGame(): JSX.Element {
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // 画面揺れ効果を適用
+    // Apply screen shake effect
     let shakeX = 0;
     let shakeY = 0;
     if (isShaking) {
@@ -687,7 +699,7 @@ export default function SpaceInvadersGame(): JSX.Element {
     drawPowerUps(ctx, gameState.current.powerUps);
     drawParticles(ctx, gameState.current.particles);
     drawFloatingTexts(ctx, gameState.current.floatingTexts);
-    drawUI(ctx, score, lives, level, gameOver, gameWon);
+    drawUI(ctx, score, lives, level);
 
     if (isShaking) {
       ctx.translate(-shakeX, -shakeY);
@@ -702,22 +714,30 @@ export default function SpaceInvadersGame(): JSX.Element {
       <div className="relative border-4 border-slate-600 rounded-lg shadow-2xl shadow-cyan-500/20 max-w-full">
         <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="bg-slate-900 rounded" />
         {gameOver && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-60">
-            {/* GAMEOVERのUIはdrawUIで描画するのでボタンは不要かも */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80">
+            <h2 className="text-6xl font-bold mb-8 text-white" style={{ fontFamily: '"Press Start 2P", system-ui' }}>
+              {gameWon ? 'クリア！' : 'ゲームオーバー'}
+            </h2>
+            <button
+              className="px-8 py-4 bg-emerald-500 text-white text-2xl font-bold rounded-lg shadow-lg hover:bg-emerald-600 transition-colors"
+              style={{ fontFamily: '"Press Start 2P", system-ui' }}
+              onClick={initializeGame}
+            >
+              もう一度
+            </button>
           </div>
         )}
       </div>
-      <div className="mt-6 text-center text-slate-400 w-full max-w-md">
-        <p className="text-lg hidden md:block">操作方法</p>
-        <p className="hidden md:block"><span className="font-bold text-cyan-400">← →</span> キーで移動</p>
-        <p className="hidden md:block"><span className="font-bold text-cyan-400">スペースキー</span>で発射</p>
-        {gameOver && <p className="mt-2 hidden md:block"><span className="font-bold text-cyan-400">'R'</span>キーでリスタート</p>}
+      <div className="mt-6 text-center text-slate-400 w-full max-w-md hidden md:block">
+        <p className="text-lg">操作方法</p>
+        <p><span className="font-bold text-cyan-400">← →</span> キーで移動</p>
+        <p><span className="font-bold text-cyan-400">スペースキー</span>で発射</p>
       </div>
 
       <div className="mt-6 w-full max-w-sm flex justify-around md:hidden">
         <button
           className="p-4 bg-gray-700 text-white rounded-lg shadow-lg active:bg-gray-500"
-          onTouchStart={() => setIsTouchMovingLeft(true)}
+          onTouchStart={(e) => { e.preventDefault(); setIsTouchMovingLeft(true); }}
           onTouchEnd={() => setIsTouchMovingLeft(false)}
         >
           <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
@@ -730,7 +750,7 @@ export default function SpaceInvadersGame(): JSX.Element {
         </button>
         <button
           className="p-4 bg-gray-700 text-white rounded-lg shadow-lg active:bg-gray-500"
-          onTouchStart={() => setIsTouchMovingRight(true)}
+          onTouchStart={(e) => { e.preventDefault(); setIsTouchMovingRight(true); }}
           onTouchEnd={() => setIsTouchMovingRight(false)}
         >
           <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10l-3.293-3.293a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"></path></svg>
