@@ -321,10 +321,6 @@ export default function SpaceInvadersGame(): JSX.Element {
     stars: [],
   });
 
-  // Touch operation states
-  const [isTouchMovingLeft, setIsTouchMovingLeft] = useState(false);
-  const [isTouchMovingRight, setIsTouchMovingRight] = useState(false);
-
   // Initialize stars
   const initializeStars = () => {
     const newStars: Star[] = [];
@@ -468,7 +464,8 @@ export default function SpaceInvadersGame(): JSX.Element {
       window.removeEventListener('keyup', handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, [gameOver]); // Add gameOver as a dependency to restart the loop
+
 
   useEffect(() => {
     if (!gameOver && level > 1) {
@@ -493,10 +490,10 @@ export default function SpaceInvadersGame(): JSX.Element {
 
     // Player movement
     const currentSpeed = gameState.current.isSpeedupActive ? PLAYER_SPEED * 1.5 : PLAYER_SPEED;
-    if (gameState.current.keys.ArrowLeft || isTouchMovingLeft) {
+    if (gameState.current.keys.ArrowLeft) {
       if (player.x > 0) player.x -= currentSpeed;
     }
-    if (gameState.current.keys.ArrowRight || isTouchMovingRight) {
+    if (gameState.current.keys.ArrowRight) {
       if (player.x < CANVAS_WIDTH - PLAYER_WIDTH) player.x += currentSpeed;
     }
 
@@ -691,7 +688,9 @@ export default function SpaceInvadersGame(): JSX.Element {
     }
 
     drawStars(ctx, gameState.current.stars);
-    drawPlayer(ctx, gameState.current.player, gameState.current.isShieldActive, gameState.current.keys.ArrowLeft || gameState.current.keys.ArrowRight || isTouchMovingLeft || isTouchMovingRight);
+    // プレイヤーが動いているかをキー状態から判定する
+    const isPlayerMoving = gameState.current.keys.ArrowLeft || gameState.current.keys.ArrowRight;
+    drawPlayer(ctx, gameState.current.player, gameState.current.isShieldActive, isPlayerMoving);
     drawInvaders(ctx, gameState.current.invaders);
     drawShields(ctx, gameState.current.shields);
     drawBullets(ctx, gameState.current.playerBullets, '#a78bfa');
@@ -734,11 +733,12 @@ export default function SpaceInvadersGame(): JSX.Element {
         <p><span className="font-bold text-cyan-400">スペースキー</span>で発射</p>
       </div>
 
+      {/* モバイル用ボタンを修正 */}
       <div className="mt-6 w-full max-w-sm flex justify-around md:hidden">
         <button
           className="p-4 bg-gray-700 text-white rounded-lg shadow-lg active:bg-gray-500"
-          onTouchStart={(e) => { e.preventDefault(); setIsTouchMovingLeft(true); }}
-          onTouchEnd={() => setIsTouchMovingLeft(false)}
+          onTouchStart={(e) => { e.preventDefault(); gameState.current.keys.ArrowLeft = true; }}
+          onTouchEnd={() => gameState.current.keys.ArrowLeft = false}
         >
           <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
         </button>
@@ -750,8 +750,8 @@ export default function SpaceInvadersGame(): JSX.Element {
         </button>
         <button
           className="p-4 bg-gray-700 text-white rounded-lg shadow-lg active:bg-gray-500"
-          onTouchStart={(e) => { e.preventDefault(); setIsTouchMovingRight(true); }}
-          onTouchEnd={() => setIsTouchMovingRight(false)}
+          onTouchStart={(e) => { e.preventDefault(); gameState.current.keys.ArrowRight = true; }}
+          onTouchEnd={() => gameState.current.keys.ArrowRight = false}
         >
           <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10l-3.293-3.293a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"></path></svg>
         </button>
